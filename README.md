@@ -2,24 +2,31 @@
 
 The [scope-profiler](https://github.com/max-models/scope-profiler) results of the max-models
 codes, in one place. This repository holds only data: each code's docs site fetches its folder and
-turns it into a "Profiling" section with `scope-profiler site`.
+turns it into a "Profiling" section with `scope-profiler site --section profiling`.
 
 ## Layout
 
 ```
 <code>/<case>/<execution>/
-    np1.h5, np2.h5, ...   # the runs of this execution (one file per run)
-    meta.yml              # optional: label, date and info of the execution
-shared/<case>/<execution>/  # runs that profile several codes at once
 ```
 
 - `<code>` is the repository name (`cunumpy`, `mpiarray`, ...).
-- `<case>` is one benchmark, named as in the code's manifest (`poisson-strong`).
-- `<execution>` is one set of runs of the case, e.g. one night or one commit. Name it by date,
-  `YYYY-MM-DD`, and add a suffix when there are several on one day (`2026-11-17_a1b2c3d`).
-- Run files are named so that they sort naturally: `np1.h5`, `np2.h5`, ..., `np16.h5`.
+- `<case>` is one benchmark, the `label` of its profiling job (`stack_strong`).
+- `<execution>` is one set of runs of the case: one night, one commit, one cluster.
 
-`meta.yml` (all keys optional):
+An execution is normally a folder that `scope-profiler jobs --upload` wrote:
+
+```
+cunumpy/stack_strong/20261117T220000Z-a1b2c3d4-stack_strong/
+    case_metadata.json      # date, commit, branch, cluster, command, ...
+    inputs/                 # the files the job ran
+    run01/profiling_data.h5, run_metadata.json
+    run02/...
+```
+
+The catalogue takes the date, commit, branch and cluster from `case_metadata.json` and names
+each run by its ranks (`np4`). Runs put together by hand go into the same place, as `np1.h5`,
+`np2.h5`, ... with an optional `meta.yml`:
 
 ```yaml
 label: Nightly 17 Nov    # shown instead of the directory name
@@ -31,33 +38,44 @@ info:                    # shown as the execution's metadata
 
 ## Add runs
 
-```bash
-git clone --depth 1 https://github.com/max-models/profiling-catalog
-mkdir -p profiling-catalog/cunumpy/poisson-strong/2026-11-17
-cp np*.h5 profiling-catalog/cunumpy/poisson-strong/2026-11-17/
-# optionally write meta.yml next to them
-cd profiling-catalog && uv run scripts/check.py && git add . && git commit -m "..." && git push
+The case files live in the code's repository (`profiling/*.toml`), with
+
+```toml
+[store]
+url = "git@github.com:max-models/profiling-catalog.git"
+path = "cunumpy/{label}"
 ```
 
-The code's manifest finds new executions by itself (`executions: {path: "<case>/{execution}/np*.h5"}`),
-so adding runs needs no change in the code's repository; the next docs build shows them.
+so that on a cluster
+
+```bash
+scope-profiler jobs run profiling/stack_strong.toml --upload
+```
+
+runs the case and pushes each finished run here. A case packaged without `--upload` is pushed
+later with `scope-profiler jobs upload <folder> --repo <url> --path cunumpy/{label}`.
+
+The code's manifest finds new executions by itself
+(`executions: {path: "data/cunumpy/stack_strong/{execution}/run*/profiling_data.h5"}`), so new
+runs need no change in the code's repository; its next docs build shows them.
 
 ## How a docs site uses it
 
-The case scripts and the manifest (`profiling/profiling.yaml`) live in the code's repository.
-Its docs build fetches only its own folder (and `shared/` when it uses it):
+The docs build fetches only its own code's folder:
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/max-models/profiling-catalog profiling/data
-git -C profiling/data sparse-checkout set cunumpy shared
+git -C profiling/data sparse-checkout set cunumpy
 ```
 
 ## Rules
 
 - Only public codes: no results of private codes (picnic) here.
-- Profiles record metadata such as host and user names; the generated pages show only what
-  identifies a run unless a case sets `metadata: all`.
+- Everything here is public. `case_metadata.json` records the submit host, the paths of the
+  checkout and the environment variables the job set; the generated pages show only what
+  identifies a run, but the files themselves can be read by anyone. Do not put secrets into
+  the environment of a profiling job.
 - Keep a file below 50 MB (GitHub refuses files above 100 MB). Thin out old nightly executions
   when a folder grows large.
-- `uv run scripts/check.py` checks the layout, the `meta.yml` files and that every `.h5` file
+- `uv run scripts/check.py` checks the layout, the metadata files and that every `.h5` file
   opens; CI runs it on every push.

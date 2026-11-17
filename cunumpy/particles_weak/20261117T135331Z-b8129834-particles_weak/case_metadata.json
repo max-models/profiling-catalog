@@ -47,5 +47,13 @@
     "scope_profiler_version": "0.8.0",
     "pip_freeze": null
   },
-  "runs": []
+  "runs": [
+    {
+      "launch_id": 1,
+      "ntasks": 1,
+      "folder": "run01",
+      "run_metadata": "run01/run_metadata.json",
+      "state": "COMPLETED"
+    }
+  ]
 }

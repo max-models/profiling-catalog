@@ -91,7 +91,11 @@ def check_execution(directory: Path, errors: list[str]) -> int:
 def main() -> int:
     errors: list[str] = []
     runs = 0
-    for code in sorted(p for p in ROOT.iterdir() if p.is_dir() and p.name not in SKIP):
+    for code in sorted(
+        p
+        for p in ROOT.iterdir()
+        if p.is_dir() and p.name not in SKIP and not p.name.startswith(".")
+    ):
         for item in sorted(code.iterdir()):
             if item.is_file() and item.suffix == ".h5":
                 errors.append(f"{item}: runs go into <code>/<case>/<execution>/")

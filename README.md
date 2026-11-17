@@ -44,6 +44,8 @@ The case files live in the code's repository (`profiling/*.toml`), with
 [store]
 url = "git@github.com:max-models/profiling-catalog.git"
 path = "cunumpy/{label}"
+public = true      # leave host names and private paths out of the metadata
+after_push = ["gh workflow run docs.yml -R max-models/cunumpy --ref devel"]
 ```
 
 so that on a cluster
@@ -52,7 +54,11 @@ so that on a cluster
 scope-profiler jobs run profiling/stack_strong.toml --upload
 ```
 
-runs the case and pushes each finished run here. A case packaged without `--upload` is pushed
+runs the case and pushes each finished run here. `public = true` makes the jobs replace host
+names and the work, checkout, venv and home paths in the packaged metadata with `<host>`,
+`<work_dir>`, `<repo>`, `<venv>` and `~`. `after_push` rebuilds the code's docs after every push,
+so its Profiling section shows the new runs at once (it needs a logged-in `gh` on the machine
+that pushes; without one the push still succeeds and the docs catch up on their next build). A case packaged without `--upload` is pushed
 later with `scope-profiler jobs upload <folder> --repo <url> --path cunumpy/{label}`.
 
 The code's manifest finds new executions by itself
@@ -71,11 +77,11 @@ git -C profiling/data sparse-checkout set cunumpy
 ## Rules
 
 - Only public codes: no results of private codes (picnic) here.
-- Everything here is public. `case_metadata.json` records the submit host, the paths of the
-  checkout and the environment variables the job set; the generated pages show only what
-  identifies a run, but the files themselves can be read by anyone. Do not put secrets into
-  the environment of a profiling job.
-- Keep a file below 50 MB (GitHub refuses files above 100 MB). Thin out old nightly executions
-  when a folder grows large.
-- `uv run scripts/check.py` checks the layout, the metadata files and that every `.h5` file
-  opens; CI runs it on every push.
+- Everything here is public. Upload with `public = true` in the `[store]` table (see above), so
+  that host names and private paths stay out of the metadata. The environment variables a job
+  sets are recorded as they are: do not put secrets into the environment of a profiling job.
+- Keep a file below 50 MB (GitHub refuses files above 100 MB). Thin out old executions when a
+  folder grows large: `scope-profiler jobs prune . --keep 30` lists what would go, `--yes`
+  removes it, then commit.
+- `scope-profiler jobs check .` checks every packaged case folder (metadata, the runs and
+  profiles it lists, that every `.h5` file opens, file sizes); CI runs it on every push.

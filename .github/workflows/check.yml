@@ -1,5 +1,7 @@
 name: Check
 
+# `scope-profiler jobs check`: every packaged case folder's metadata parses, the runs it lists
+# have their folders and profiles, every .h5 file opens and no file is larger than 50 MB.
 on:
   push:
     branches: [main]
@@ -11,4 +13,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv run scripts/check.py
+      # scope-profiler from devel until a release has `jobs check` (then: --from scope-profiler)
+      - run: uvx --from "scope-profiler @ git+https://github.com/max-models/scope-profiler@devel" scope-profiler jobs check .
